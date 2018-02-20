@@ -39,6 +39,21 @@ fn main() {
                     vel: (-x.0 / l, -x.1 / l),
                 })
             }
+            for grain in spray.iter_mut() {
+                rectangle(
+                    [0.0, 0.0, 0.0, 1.0],
+                    [grain.pos.0 - 5.0, grain.pos.1 - 5.0, 10.0, 10.0],
+                    c.transform,
+                    g,
+                );
+                grain.pos.0 += grain.vel.0;
+                grain.pos.1 += grain.vel.1;
+                grain.vel.0 *= 0.9;
+                grain.vel.1 *= 0.9;
+                grain.vel.1 += 1.0;
+            }
+            spray.retain(|grain| grain.pos.1 < SCREEN.1 as f64);
+
             clear([0.95, 0.95, 0.95, 1.0], g);
             rectangle(
                 [0.0, 0.0, 0.0, 1.0],
