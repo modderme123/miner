@@ -3,8 +3,11 @@ extern crate rand;
 
 use piston_window::*;
 
-const SCREEN: (i32, i32) = (720, 450);
-
+const SCREEN: (u32, u32) = (720, 450);
+struct Grain {
+    pos: (f64, f64),
+    vel: (f64, f64),
+}
 fn main() {
     let mut window: PistonWindow = WindowSettings::new("Miner!", SCREEN)
         .exit_on_esc(true)
@@ -13,6 +16,7 @@ fn main() {
     let mut you = (50.0, 50.0);
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
+    let mut spray = vec![];
     while let Some(e) = window.next() {
         e.mouse_cursor(|x, y| cursor = (x, y));
         if let Some(Button::Mouse(_)) = e.press_args() {
@@ -27,6 +31,13 @@ fn main() {
                 let l = (x.0 * x.0 + x.1 * x.1).sqrt();
                 you.0 += 5.0 * x.0 / l;
                 you.1 += 5.0 * x.1 / l;
+                you.0 = you.0.max(0.0).min(SCREEN.0 as f64);
+                you.1 = you.1.max(0.0).min(SCREEN.1 as f64);
+
+                spray.push(Grain {
+                    pos: (you.0 - x.0 / l, you.1 - x.1 / l),
+                    vel: (-x.0 / l, -x.1 / l),
+                })
             }
             clear([0.95, 0.95, 0.95, 1.0], g);
             rectangle(
