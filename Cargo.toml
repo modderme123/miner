@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["modderme123 <modderme123@gmail.com>"]
 
 [dependencies]
+piston_window = "0.75.0"
