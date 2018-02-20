@@ -3,8 +3,10 @@ extern crate rand;
 
 use piston_window::*;
 
+const SCREEN: (i32, i32) = (720, 450);
+
 fn main() {
-    let mut window: PistonWindow = WindowSettings::new("Miner!", (640, 480))
+    let mut window: PistonWindow = WindowSettings::new("Miner!", SCREEN)
         .exit_on_esc(true)
         .build()
         .unwrap();
