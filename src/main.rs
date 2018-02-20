@@ -23,12 +23,12 @@ fn main() {
             if clicking {
                 let x = (you.0 - cursor.0, you.1 - cursor.1);
                 let l = (x.0 * x.0 + x.1 * x.1).sqrt();
-                you.0 += x.0 / l;
-                you.1 += x.1 / l;
+                you.0 += 5.0 * x.0 / l;
+                you.1 += 5.0 * x.1 / l;
             }
-            clear([0.5, 1.0, 0.5, 1.0], g);
+            clear([0.95, 0.95, 0.95, 1.0], g);
             rectangle(
-                [1.0, 1.0, 0.5, 1.0],
+                [0.0, 0.0, 0.0, 1.0],
                 [you.0 - 25.0, you.1 - 25.0, 50.0, 50.0],
                 c.transform,
                 g,
