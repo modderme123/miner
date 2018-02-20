@@ -61,6 +61,18 @@ fn main() {
             you.vel.1 += 0.05;
             you.vel.0 *= 0.99;
             you.vel.1 *= 0.99;
+            if you.pos.0 >= SCREEN.0 as f64 && you.vel.0 >= 0.0 {
+                you.vel.0 = 0.0
+            }
+            if you.pos.0 <= 0.0 && you.vel.0 <= 0.0 {
+                you.vel.0 = 0.0
+            }
+            if you.pos.1 >= SCREEN.1 as f64 && you.vel.1 >= 0.0 {
+                you.vel.1 = 0.0
+            }
+            if you.pos.1 <= 0.0 && you.vel.1 <= 0.0 {
+                you.vel.1 = 0.0
+            }
             you.pos.0 = (you.pos.0 + you.vel.0).max(0.0).min(SCREEN.0 as f64);
             you.pos.1 = (you.pos.1 + you.vel.1).max(0.0).min(SCREEN.1 as f64);
 
