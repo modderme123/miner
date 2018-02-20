@@ -33,7 +33,6 @@ fn main() {
                 you.0 += 5.0 * x.0 / l;
                 you.1 += 5.0 * x.1 / l;
                 you.0 = you.0.max(0.0).min(SCREEN.0 as f64);
-                you.1 = you.1.max(0.0).min(SCREEN.1 as f64);
 
                 spray.push(Grain {
                     pos: (you.0 - x.0 / l, you.1 - x.1 / l),
@@ -57,7 +56,7 @@ fn main() {
                 grain.vel.1 += 0.02;
             }
             spray.retain(|grain| grain.pos.1 < SCREEN.1 as f64 && grain.pos.1 > 0.0);
-            you.1 += 0.3;
+            you.1 = (you.1 + 0.3).max(0.0).min(SCREEN.1 as f64);
 
             clear([0.95, 0.95, 0.95, 1.0], g);
             rectangle(
