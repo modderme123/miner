@@ -15,5 +15,5 @@ fn main() {
             clear([0.5, 1.0, 0.5, 1.0], g);
         });
     }
-    println!("{} Hello, world!", random::<i64>());
+    println!("{} Hello world, I LOST THE GAME!", random::<i64>());
 }
