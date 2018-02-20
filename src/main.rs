@@ -2,6 +2,7 @@ extern crate piston_window;
 extern crate rand;
 
 use piston_window::*;
+use rand::random;
 
 const SCREEN: (u32, u32) = (720, 450);
 struct Grain {
@@ -36,21 +37,24 @@ fn main() {
 
                 spray.push(Grain {
                     pos: (you.0 - x.0 / l, you.1 - x.1 / l),
-                    vel: (-x.0 / l, -x.1 / l),
+                    vel: (
+                        -10.0 * x.0 / l + 3.0 * random::<f64>(),
+                        -10.0 * x.1 / l + 3.0 * random::<f64>(),
+                    ),
                 })
             }
             for grain in spray.iter_mut() {
                 rectangle(
                     [0.0, 0.0, 0.0, 1.0],
-                    [grain.pos.0 - 5.0, grain.pos.1 - 5.0, 10.0, 10.0],
+                    [grain.pos.0 - 3.0, grain.pos.1 - 3.0, 6.0, 6.0],
                     c.transform,
                     g,
                 );
                 grain.pos.0 += grain.vel.0;
                 grain.pos.1 += grain.vel.1;
-                grain.vel.0 *= 0.9;
-                grain.vel.1 *= 0.9;
-                grain.vel.1 += 1.0;
+                grain.vel.0 *= 0.99;
+                grain.vel.1 *= 0.99;
+                grain.vel.1 += 0.01;
             }
             spray.retain(|grain| grain.pos.1 < SCREEN.1 as f64);
 
