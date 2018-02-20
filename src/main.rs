@@ -5,7 +5,7 @@ use piston_window::*;
 use rand::random;
 
 const SCREEN: (u32, u32) = (720, 450);
-struct Grain {
+struct Point {
     pos: (f64, f64),
     vel: (f64, f64),
 }
@@ -14,7 +14,10 @@ fn main() {
         .exit_on_esc(true)
         .build()
         .unwrap();
-    let mut you = (50.0, 50.0);
+    let mut you = Point {
+        pos: (50.0, 50.0),
+        vel: (0.0, 0.0),
+    };
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
     let mut spray = vec![];
@@ -28,14 +31,13 @@ fn main() {
         }
         window.draw_2d(&e, |c, g| {
             if clicking {
-                let x = (you.0 - cursor.0, you.1 - cursor.1);
+                let x = (you.pos.0 - 10.0 - cursor.0, you.pos.1 - 10.0 - cursor.1);
                 let l = (x.0 * x.0 + x.1 * x.1).sqrt();
-                you.0 += 5.0 * x.0 / l;
-                you.1 += 5.0 * x.1 / l;
-                you.0 = you.0.max(0.0).min(SCREEN.0 as f64);
+                you.vel.0 += 0.1 * x.0 / l;
+                you.vel.1 += 0.1 * x.1 / l;
 
-                spray.push(Grain {
-                    pos: (you.0 - x.0 / l, you.1 - x.1 / l),
+                spray.push(Point {
+                    pos: (you.pos.0 - x.0 / l, you.pos.1 - x.1 / l),
                     vel: (
                         -10.0 * x.0 / l + 3.0 * random::<f64>(),
                         -10.0 * x.1 / l + 3.0 * random::<f64>(),
@@ -56,12 +58,16 @@ fn main() {
                 grain.vel.1 += 0.05;
             }
             spray.retain(|grain| grain.pos.1 < SCREEN.1 as f64 && grain.pos.1 > 0.0);
-            you.1 = (you.1 + 0.3).max(0.0).min(SCREEN.1 as f64);
+            you.vel.1 += 0.05;
+            you.vel.0 *= 0.99;
+            you.vel.1 *= 0.99;
+            you.pos.0 = (you.pos.0 + you.vel.0).max(0.0).min(SCREEN.0 as f64);
+            you.pos.1 = (you.pos.1 + you.vel.1).max(0.0).min(SCREEN.1 as f64);
 
             clear([0.95, 0.95, 0.95, 1.0], g);
             rectangle(
                 [0.0, 0.0, 0.0, 1.0],
-                [you.0 - 10.0, you.1 - 10.0, 20.0, 20.0],
+                [you.pos.0 - 10.0, you.pos.1 - 10.0, 20.0, 20.0],
                 c.transform,
                 g,
             );
