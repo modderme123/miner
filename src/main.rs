@@ -3,6 +3,7 @@ extern crate rand;
 
 use piston_window::*;
 use rand::random;
+use std::io;
 
 const SCREEN: (u32, u32) = (720, 450);
 struct Point {
@@ -10,6 +11,22 @@ struct Point {
     vel: (f64, f64),
 }
 fn main() {
+    println!("Would you like to \n 1) Connect to an existing socket? \n 2) Create a new socket?");
+    let mut input = String::new();
+    if let Ok(_) = io::stdin().read_line(&mut input) {
+        match &*input {
+            "1\n" => {
+                println!("What is the ip of the socket you would like to connect to?");
+                input.clear();
+                if let Ok(_) = io::stdin().read_line(&mut input) {
+                    println!("asdf {}", input);
+                }
+            }
+            "2\n" => (),
+            _ => (),
+        }
+    }
+
     let mut window: PistonWindow = WindowSettings::new("Miner!", SCREEN)
         .exit_on_esc(true)
         .build()
