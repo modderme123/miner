@@ -197,8 +197,8 @@ fn main() {
                     let x = (you.pos.0 - 10.0 - cursor.0, you.pos.1 - 10.0 - cursor.1);
                     let l = (x.0 * x.0 + x.1 * x.1).sqrt();
 
-                    you.vel.0 += 0.1 * x.0 / l;
-                    you.vel.1 += 0.1 * x.1 / l;
+                    you.vel.0 += 0.5 * x.0 / l;
+                    you.vel.1 += 0.5 * x.1 / l;
 
                     spray.push(Point {
                         pos: (you.pos.0 - x.0 / l, you.pos.1 - x.1 / l),
@@ -229,9 +229,9 @@ fn main() {
             spray.retain(|grain| grain.pos.1 < SCREEN.1 as f64 && grain.pos.1 > 0.0);
 
             for (_, you) in players.iter_mut() {
-                you.vel.1 += 0.05;
-                you.vel.0 *= 0.99;
-                you.vel.1 *= 0.99;
+                you.vel.1 += 0.06;
+                you.vel.0 *= 0.95;
+                you.vel.1 *= 0.95;
 
                 if you.pos.0 >= SCREEN.0 as f64 && you.vel.0 >= 0.0 {
                     you.vel.0 = 0.0
