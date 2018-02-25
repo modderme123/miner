@@ -253,9 +253,13 @@ fn main() {
             }
 
             clear([0.95, 0.95, 0.95, 1.0], g);
-            for (_, p) in players.iter() {
+            for (addr, p) in players.iter() {
                 rectangle(
-                    [0.0, 0.0, 0.0, 1.0],
+                    if addr == &local_addr {
+                        [0.0, 0.0, 0.0, 1.0]
+                    } else {
+                        [0.7, 0.7, 0.7, 1.0]
+                    },
                     [p.pos.0 - 10.0, p.pos.1 - 10.0, 20.0, 20.0],
                     c.transform,
                     g,
