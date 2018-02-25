@@ -79,7 +79,7 @@ struct Point {
 
 #[derive(Serialize, Deserialize, Debug)]
 enum Message {
-    Move(SocketAddr, Point),
+    Move(SocketAddr, (Point, Vec<Point>)),
     Remove(SocketAddr),
 }
 
@@ -151,15 +151,17 @@ fn main() {
     let mut players = HashMap::new();
     players.insert(
         local_addr,
-        Point {
-            pos: (50.0, 50.0),
-            vel: (0.0, 0.0),
-        },
+        (
+            Point {
+                pos: (50.0, 50.0),
+                vel: (0.0, 0.0),
+            },
+            vec![],
+        ),
     );
 
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
-    let mut spray = vec![];
     while let Some(e) = window.next() {
         e.mouse_cursor(|x, y| cursor = (x, y));
         match e.press_args() {
@@ -174,9 +176,10 @@ fn main() {
             if let Ok(message) = rx.try_recv() {
                 match message {
                     Action::Add(addr, mut stream) => {
-                        for (addr, p) in players.iter() {
+                        for (addr, &(ref p, ref s)) in players.iter() {
                             stream
-                                .write(&serde_json::to_vec(&Message::Move(*addr, *p)).unwrap())
+                                .write(&serde_json::to_vec(&Message::Move(*addr, (*p, s.to_vec())))
+                                    .unwrap())
                                 .ok();
                         }
                         connections.add_connection(&addr, stream);
@@ -189,13 +192,15 @@ fn main() {
         if let Ok(message) = reader_read.try_recv() {
             match serde_json::from_slice(&message.0[0..message.1]) {
                 Ok(Message::Remove(addr)) => players.remove(&addr),
-                Ok(Message::Move(addr, p)) if addr != local_addr => players.insert(addr, p),
+                Ok(Message::Move(addr, ref p)) if addr != local_addr => {
+                    players.insert(addr, p.clone())
+                }
                 _ => None,
             };
         }
         window.draw_2d(&e, |c, g| {
             if clicking {
-                if let Some(you) = players.get_mut(&local_addr) {
+                if let Some(&mut (ref mut you, ref mut spray)) = players.get_mut(&local_addr) {
                     let x = (you.pos.0 - 10.0 - cursor.0, you.pos.1 - 10.0 - cursor.1);
                     let l = (x.0 * x.0 + x.1 * x.1).sqrt();
 
@@ -209,28 +214,27 @@ fn main() {
                             -10.0 * x.1 / l + 3.0 * random::<f64>(),
                         ),
                     });
-                    let a = &Message::Move(local_addr, you.clone());
+                    let a = &Message::Move(local_addr, (you.clone(), spray.to_vec()));
                     reader2.write(&serde_json::to_vec(a).unwrap()).ok();
                     reader2.flush().ok();
                 }
             }
 
-            for grain in spray.iter_mut() {
-                rectangle(
-                    [0.0, 0.0, 0.0, 1.0],
-                    [grain.pos.0 - 3.0, grain.pos.1 - 3.0, 6.0, 6.0],
-                    c.transform,
-                    g,
-                );
-                grain.pos.0 += grain.vel.0;
-                grain.pos.1 += grain.vel.1;
-                grain.vel.0 *= 0.99;
-                grain.vel.1 *= 0.99;
-                grain.vel.1 += 0.05;
-            }
-            spray.retain(|grain| grain.pos.1 < SCREEN.1 as f64 && grain.pos.1 > 0.0);
-
-            for (_, you) in players.iter_mut() {
+            for (_, &mut (ref mut you, ref mut spray)) in players.iter_mut() {
+                for grain in spray.iter_mut() {
+                    rectangle(
+                        [0.0, 0.0, 0.0, 1.0],
+                        [grain.pos.0 - 3.0, grain.pos.1 - 3.0, 6.0, 6.0],
+                        c.transform,
+                        g,
+                    );
+                    grain.pos.0 += grain.vel.0;
+                    grain.pos.1 += grain.vel.1;
+                    grain.vel.0 *= 0.99;
+                    grain.vel.1 *= 0.99;
+                    grain.vel.1 += 0.05;
+                }
+                spray.retain(|grain| grain.pos.1 < SCREEN.1 as f64 && grain.pos.1 > 0.0);
                 you.vel.1 += 0.06;
                 you.vel.0 *= 0.95;
                 you.vel.1 *= 0.95;
@@ -253,7 +257,7 @@ fn main() {
             }
 
             clear([0.95, 0.95, 0.95, 1.0], g);
-            for (addr, p) in players.iter() {
+            for (addr, &(ref p, _)) in players.iter() {
                 rectangle(
                     if addr == &local_addr {
                         [0.0, 0.0, 0.0, 1.0]
