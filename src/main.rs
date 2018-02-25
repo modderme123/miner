@@ -100,10 +100,10 @@ fn main() {
             (None, TcpStream::connect(input + ":8080").unwrap())
         }
         "2\n" => (
-            Some(TcpListener::bind("127.0.0.1:8080").unwrap()),
-            TcpStream::connect("127.0.0.1:8080").unwrap(),
+            Some(TcpListener::bind("0.0.0.0:8080").unwrap()),
+            TcpStream::connect("0.0.0.0:8080").unwrap(),
         ),
-        _ => (None, TcpStream::connect("127.0.0.1:8080").unwrap()),
+        _ => (None, TcpStream::connect("0.0.0.0:8080").unwrap()),
     };
     let l = listener.is_some();
     let mut reader2 = reader.try_clone().unwrap();
