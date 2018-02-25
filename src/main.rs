@@ -192,11 +192,17 @@ fn main() {
         }
         if let Ok(message) = reader_read.try_recv() {
             match serde_json::from_slice(&message.0[0..message.1]) {
-                Ok(Message::Remove(addr)) => players.remove(&addr),
-                Ok(Message::Move(addr, ref p)) if addr != local_addr => {
-                    players.insert(addr, p.clone())
+                Ok(Message::Remove(addr)) => {
+                    players.remove(&addr);
                 }
-                _ => None,
+                Ok(Message::Move(addr, ref p)) if addr != local_addr => {
+                    players.insert(addr, p.clone());
+                }
+                Err(e) => {
+                    println!("{}", e);
+                    ()
+                }
+                _ => (),
             };
         }
         if time % 10 == 0 {
