@@ -83,7 +83,7 @@ enum Message {
     Remove(SocketAddr),
 }
 
-const SCREEN: (u32, u32) = (720, 450);
+const SCREEN: (u32, u32) = (1080, 675);
 
 fn main() {
     println!("try connecting via `telnet localhost 8080`");
