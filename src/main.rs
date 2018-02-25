@@ -126,11 +126,11 @@ fn main() {
     });
 
     let (reader_send, reader_read): (
-        Sender<([u8; 4096], usize)>,
-        Receiver<([u8; 4096], usize)>,
+        Sender<([u8; 65536], usize)>,
+        Receiver<([u8; 65536], usize)>,
     ) = mpsc::channel();
     thread::spawn(move || 'read: loop {
-        let mut buf = [0; 4096];
+        let mut buf = [0; 65536];
         if let Ok(n) = reader.read(&mut buf) {
             if n == 0 {
                 break 'read;
@@ -162,6 +162,7 @@ fn main() {
 
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
+    let mut time = 0;
     while let Some(e) = window.next() {
         e.mouse_cursor(|x, y| cursor = (x, y));
         match e.press_args() {
@@ -198,6 +199,12 @@ fn main() {
                 _ => None,
             };
         }
+        if time % 10 == 0 {
+            let a = &Message::Move(local_addr, (you.clone(), spray.to_vec()));
+            reader2.write(&serde_json::to_vec(a).unwrap()).ok();
+            reader2.flush().ok();
+        }
+        time += 1;
         window.draw_2d(&e, |c, g| {
             if clicking {
                 if let Some(&mut (ref mut you, ref mut spray)) = players.get_mut(&local_addr) {
@@ -214,16 +221,17 @@ fn main() {
                             -10.0 * x.1 / l + 3.0 * random::<f64>(),
                         ),
                     });
-                    let a = &Message::Move(local_addr, (you.clone(), spray.to_vec()));
-                    reader2.write(&serde_json::to_vec(a).unwrap()).ok();
-                    reader2.flush().ok();
                 }
             }
 
-            for (_, &mut (ref mut you, ref mut spray)) in players.iter_mut() {
+            for (addr, &mut (ref mut you, ref mut spray)) in players.iter_mut() {
                 for grain in spray.iter_mut() {
                     rectangle(
-                        [0.0, 0.0, 0.0, 1.0],
+                        if addr == &local_addr {
+                            [0.0, 0.0, 0.0, 1.0]
+                        } else {
+                            [0.7, 0.7, 0.7, 1.0]
+                        },
                         [grain.pos.0 - 3.0, grain.pos.1 - 3.0, 6.0, 6.0],
                         c.transform,
                         g,
