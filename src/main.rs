@@ -162,11 +162,13 @@ fn main() {
     let mut spray = vec![];
     while let Some(e) = window.next() {
         e.mouse_cursor(|x, y| cursor = (x, y));
-        if let Some(Button::Mouse(_)) = e.press_args() {
-            clicking = true
+        match e.press_args() {
+            Some(Button::Mouse(_)) | Some(Button::Keyboard(Key::Space)) => clicking = true,
+            _ => (),
         }
-        if let Some(Button::Mouse(_)) = e.release_args() {
-            clicking = false
+        match e.release_args() {
+            Some(Button::Mouse(_)) | Some(Button::Keyboard(Key::Space)) => clicking = false,
+            _ => (),
         }
         if l {
             if let Ok(message) = rx.try_recv() {
