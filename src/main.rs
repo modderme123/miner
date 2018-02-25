@@ -16,7 +16,7 @@ use std::thread;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::mpsc;
-use std::io;
+use std::io::{self, BufRead, BufReader};
 
 enum Action {
     Add(SocketAddr, TcpStream),
@@ -31,7 +31,7 @@ struct Server {
 impl Server {
     fn broadcast(&mut self, msg: &Vec<u8>) {
         for (_, mut connection) in self.connections.iter_mut() {
-            connection.write(msg).ok();
+            connection.write(&[msg.to_vec(), vec![0xa]].concat()).ok();
             connection.flush().ok();
         }
     }
@@ -59,13 +59,14 @@ impl Server {
 }
 
 fn handle_client(mut stream: TcpStream, addr: SocketAddr, sender: Sender<Action>) {
+    let mut r = BufReader::new(stream);
     'read: loop {
-        let mut buf = [0; 4096];
-        if let Ok(n) = stream.read(&mut buf) {
+        let mut buf = String::new();
+        if let Ok(n) = r.read_line(&mut buf) {
             if n == 0 {
                 break 'read;
             }
-            sender.send(Action::Broadcast(buf[0..n].to_vec())).ok();
+            sender.send(Action::Broadcast(buf.as_bytes().to_vec())).ok();
         }
     }
     sender.send(Action::Remove(addr)).ok();
@@ -125,17 +126,15 @@ fn main() {
         }
     });
 
-    let (reader_send, reader_read): (
-        Sender<([u8; 65536], usize)>,
-        Receiver<([u8; 65536], usize)>,
-    ) = mpsc::channel();
+    let (reader_send, reader_read): (Sender<String>, Receiver<String>) = mpsc::channel();
+    let mut r = BufReader::new(reader);
     thread::spawn(move || 'read: loop {
-        let mut buf = [0; 65536];
-        if let Ok(n) = reader.read(&mut buf) {
+        let mut buf = String::new();
+        if let Ok(n) = r.read_line(&mut buf) {
             if n == 0 {
                 break 'read;
             }
-            reader_send.send((buf, n)).ok();
+            reader_send.send(buf).ok();
         }
     });
 
@@ -179,8 +178,11 @@ fn main() {
                     Action::Add(addr, mut stream) => {
                         for (addr, &(ref p, ref s)) in players.iter() {
                             stream
-                                .write(&serde_json::to_vec(&Message::Move(*addr, (*p, s.to_vec())))
-                                    .unwrap())
+                                .write(&[
+                                    serde_json::to_vec(&Message::Move(*addr, (*p, s.to_vec())))
+                                        .unwrap(),
+                                    vec![0xa],
+                                ].concat())
                                 .ok();
                         }
                         connections.add_connection(&addr, stream);
@@ -191,16 +193,12 @@ fn main() {
             }
         }
         if let Ok(message) = reader_read.try_recv() {
-            match serde_json::from_slice(&message.0[0..message.1]) {
+            match serde_json::from_str(&message) {
                 Ok(Message::Remove(addr)) => {
                     players.remove(&addr);
                 }
                 Ok(Message::Move(addr, ref p)) if addr != local_addr => {
                     players.insert(addr, p.clone());
-                }
-                Err(e) => {
-                    println!("{}", e);
-                    ()
                 }
                 _ => (),
             };
@@ -208,7 +206,9 @@ fn main() {
         if time % 10 == 0 {
             if let Some(&mut (ref mut you, ref mut spray)) = players.get_mut(&local_addr) {
                 let a = &Message::Move(local_addr, (you.clone(), spray.to_vec()));
-                reader2.write(&serde_json::to_vec(a).unwrap()).ok();
+                reader2
+                    .write(&[serde_json::to_vec(a).unwrap(), vec![0xa]].concat())
+                    .ok();
                 reader2.flush().ok();
             }
         }
