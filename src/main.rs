@@ -200,9 +200,11 @@ fn main() {
             };
         }
         if time % 10 == 0 {
-            let a = &Message::Move(local_addr, (you.clone(), spray.to_vec()));
-            reader2.write(&serde_json::to_vec(a).unwrap()).ok();
-            reader2.flush().ok();
+            if let Some(&mut (ref mut you, ref mut spray)) = players.get_mut(&local_addr) {
+                let a = &Message::Move(local_addr, (you.clone(), spray.to_vec()));
+                reader2.write(&serde_json::to_vec(a).unwrap()).ok();
+                reader2.flush().ok();
+            }
         }
         time += 1;
         window.draw_2d(&e, |c, g| {
