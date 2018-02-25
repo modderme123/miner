@@ -168,31 +168,30 @@ fn main() {
         if let Some(Button::Mouse(_)) = e.release_args() {
             clicking = false
         }
-        window.draw_2d(&e, |c, g| {
-            if l {
-                if let Ok(message) = rx.try_recv() {
-                    match message {
-                        Action::Add(addr, mut stream) => {
-                            for (addr, p) in players.iter() {
-                                stream
-                                    .write(&serde_json::to_vec(&Message::Move(*addr, *p)).unwrap())
-                                    .ok();
-                            }
-                            connections.add_connection(&addr, stream);
+        if l {
+            if let Ok(message) = rx.try_recv() {
+                match message {
+                    Action::Add(addr, mut stream) => {
+                        for (addr, p) in players.iter() {
+                            stream
+                                .write(&serde_json::to_vec(&Message::Move(*addr, *p)).unwrap())
+                                .ok();
                         }
-                        Action::Remove(addr) => connections.remove_connection(&addr),
-                        Action::Broadcast(msg) => connections.broadcast(&msg),
+                        connections.add_connection(&addr, stream);
                     }
+                    Action::Remove(addr) => connections.remove_connection(&addr),
+                    Action::Broadcast(msg) => connections.broadcast(&msg),
                 }
             }
-            if let Ok(message) = reader_read.try_recv() {
-                match serde_json::from_slice(&message.0[0..message.1]).unwrap() {
-                    Message::Remove(addr) => players.remove(&addr),
-                    Message::Move(addr, p) if addr != local_addr => players.insert(addr, p),
-                    Message::Move(_, _) => None,
-                };
-            }
-
+        }
+        if let Ok(message) = reader_read.try_recv() {
+            match serde_json::from_slice(&message.0[0..message.1]).unwrap() {
+                Message::Remove(addr) => players.remove(&addr),
+                Message::Move(addr, p) if addr != local_addr => players.insert(addr, p),
+                Message::Move(_, _) => None,
+            };
+        }
+        window.draw_2d(&e, |c, g| {
             if clicking {
                 if let Some(you) = players.get_mut(&local_addr) {
                     let x = (you.pos.0 - 10.0 - cursor.0, you.pos.1 - 10.0 - cursor.1);
@@ -208,9 +207,8 @@ fn main() {
                             -10.0 * x.1 / l + 3.0 * random::<f64>(),
                         ),
                     });
-                    reader2
-                        .write(&serde_json::to_vec(&Message::Move(local_addr, you.clone())).unwrap())
-                        .ok();
+                    let a = &Message::Move(local_addr, you.clone());
+                    reader2.write(&serde_json::to_vec(a).unwrap()).ok();
                     reader2.flush().ok();
                 }
             }
