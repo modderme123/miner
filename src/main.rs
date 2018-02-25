@@ -185,10 +185,10 @@ fn main() {
             }
         }
         if let Ok(message) = reader_read.try_recv() {
-            match serde_json::from_slice(&message.0[0..message.1]).unwrap() {
-                Message::Remove(addr) => players.remove(&addr),
-                Message::Move(addr, p) if addr != local_addr => players.insert(addr, p),
-                Message::Move(_, _) => None,
+            match serde_json::from_slice(&message.0[0..message.1]) {
+                Ok(Message::Remove(addr)) => players.remove(&addr),
+                Ok(Message::Move(addr, p)) if addr != local_addr => players.insert(addr, p),
+                _ => None,
             };
         }
         window.draw_2d(&e, |c, g| {
