@@ -209,11 +209,7 @@ fn main() {
                         ),
                     });
                     reader2
-                        .write(
-                            &serde_json::to_string(&Message::Move(local_addr, you.clone()))
-                                .unwrap()
-                                .as_bytes(),
-                        )
+                        .write(&serde_json::to_vec(&Message::Move(local_addr, you.clone())).unwrap())
                         .ok();
                     reader2.flush().ok();
                 }
