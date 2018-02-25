@@ -11,7 +11,7 @@ use rand::random;
 use piston_window::*;
 
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::thread;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
@@ -58,7 +58,7 @@ impl Server {
     }
 }
 
-fn handle_client(mut stream: TcpStream, addr: SocketAddr, sender: Sender<Action>) {
+fn handle_client(stream: TcpStream, addr: SocketAddr, sender: Sender<Action>) {
     let mut r = BufReader::new(stream);
     'read: loop {
         let mut buf = String::new();
@@ -91,7 +91,7 @@ fn main() {
     println!("Would you like to \n 1) Connect to an existing socket? \n 2) Create a new socket?");
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
-    let (listener, mut reader) = match &*input {
+    let (listener, reader) = match &*input {
         "1\n" => {
             println!("What is the ip of the socket you would like to connect to?");
             input.clear();
@@ -185,6 +185,7 @@ fn main() {
                                 ].concat())
                                 .ok();
                         }
+                        stream.flush().ok();
                         connections.add_connection(&addr, stream);
                     }
                     Action::Remove(addr) => connections.remove_connection(&addr),
