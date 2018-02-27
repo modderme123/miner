@@ -161,6 +161,7 @@ fn main() {
 
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
+    let mut terrain = [[false; (SCREEN.0 / 10) as usize]; (SCREEN.1 / 10) as usize];
     let mut time = 0;
     while let Some(e) = window.next() {
         e.mouse_cursor(|x, y| cursor = (x, y));
