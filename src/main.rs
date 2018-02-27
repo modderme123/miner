@@ -84,7 +84,7 @@ enum Message {
     Remove(SocketAddr),
 }
 
-const SCREEN: (u32, u32) = (1080, 675);
+const SCREEN: (u32, u32) = (1080, 678);
 
 fn main() {
     println!("try connecting via `telnet localhost 8080`");
@@ -161,10 +161,28 @@ fn main() {
 
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
-    let mut terrain = [[false; (SCREEN.0 / 10) as usize]; (SCREEN.1 / 10) as usize];
-    for (x, a) in (0..).zip(terrain.iter_mut()) {
-        for (y, val) in (0..).zip(a.iter_mut()) {
-            *val = random();
+    let mut terrain = [[false; SCREEN.1 as usize / 6]; SCREEN.0 as usize / 6];
+    {
+        let mut rects = vec![];
+
+        for _ in 1..100 {
+            let x = (
+                random::<f64>() * SCREEN.0 as f64 / 6.0,
+                random::<f64>() * SCREEN.1 as f64 / 6.0,
+            );
+            rects.push((
+                x.0,
+                x.1,
+                x.0 + random::<f64>() * 20.0,
+                x.1 + random::<f64>() * 20.0,
+            ))
+        }
+        for (x, a) in (0..).zip(terrain.iter_mut()) {
+            for (y, val) in (0..).zip(a.iter_mut()) {
+                *val = rects.iter().any(|r| {
+                    (x as f64) > r.0 && (x as f64) < r.2 && (y as f64) > r.1 && (y as f64) < r.3
+                });
+            }
         }
     }
     let mut time = 0;
@@ -223,7 +241,7 @@ fn main() {
         window.draw_2d(&e, |c, g| {
             if clicking {
                 if let Some(&mut (ref mut you, ref mut spray)) = players.get_mut(&local_addr) {
-                    let x = (you.pos.0 - 10.0 - cursor.0, you.pos.1 - 10.0 - cursor.1);
+                    let x = (you.pos.0 - cursor.0, you.pos.1 - cursor.1);
                     let l = (x.0 * x.0 + x.1 * x.1).sqrt();
 
                     you.vel.0 += 0.5 * x.0 / l;
@@ -257,7 +275,15 @@ fn main() {
                     grain.vel.1 *= 0.99;
                     grain.vel.1 += 0.05;
                 }
-                spray.retain(|grain| grain.pos.1 < SCREEN.1 as f64 && grain.pos.1 > 0.0);
+                spray.retain(|grain| {
+                    grain.pos.0 < SCREEN.0 as f64 && grain.pos.0 > 0.0
+                        && grain.pos.1 < SCREEN.1 as f64 && grain.pos.1 > 0.0
+                });
+                spray.retain(|grain| {
+                    let x = terrain[grain.pos.0 as usize / 6][grain.pos.1 as usize / 6];
+                    terrain[grain.pos.0 as usize / 6][grain.pos.1 as usize / 6] = false;
+                    !x
+                });
                 you.vel.1 += 0.06;
                 you.vel.0 *= 0.95;
                 you.vel.1 *= 0.95;
@@ -285,7 +311,7 @@ fn main() {
                     if *val {
                         rectangle(
                             [0.0, 0.0, 0.0, 1.0],
-                            [x as f64 * 10.0, y as f64 * 10.0, 20.0, 20.0],
+                            [x as f64 * 6.0, y as f64 * 6.0, 6.0, 6.0],
                             c.transform,
                             g,
                         );
@@ -300,7 +326,7 @@ fn main() {
                         } else {
                             [0.7, 0.7, 0.7, 1.0]
                         },
-                        [grain.pos.0 - 3.0, grain.pos.1 - 3.0, 6.0, 6.0],
+                        [grain.pos.0, grain.pos.1, 6.0, 6.0],
                         c.transform,
                         g,
                     );
