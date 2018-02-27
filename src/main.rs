@@ -162,6 +162,11 @@ fn main() {
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
     let mut terrain = [[false; (SCREEN.0 / 10) as usize]; (SCREEN.1 / 10) as usize];
+    for (x, a) in (0..).zip(terrain.iter_mut()) {
+        for (y, val) in (0..).zip(a.iter_mut()) {
+            *val = random();
+        }
+    }
     let mut time = 0;
     while let Some(e) = window.next() {
         e.mouse_cursor(|x, y| cursor = (x, y));
@@ -275,18 +280,6 @@ fn main() {
             }
 
             clear([0.95, 0.95, 0.95, 1.0], g);
-            for (addr, &(ref p, _)) in players.iter() {
-                rectangle(
-                    if addr == &local_addr {
-                        [0.0, 0.0, 0.0, 1.0]
-                    } else {
-                        [0.7, 0.7, 0.7, 1.0]
-                    },
-                    [p.pos.0 - 10.0, p.pos.1 - 10.0, 20.0, 20.0],
-                    c.transform,
-                    g,
-                );
-            }
             for (x, a) in (0..).zip(terrain.iter()) {
                 for (y, val) in (0..).zip(a.iter()) {
                     if *val {
@@ -298,6 +291,32 @@ fn main() {
                         );
                     }
                 }
+            }
+            for (addr, &(_, ref spray)) in players.iter() {
+                for grain in spray.iter() {
+                    rectangle(
+                        if addr == &local_addr {
+                            [0.0, 0.0, 0.0, 1.0]
+                        } else {
+                            [0.7, 0.7, 0.7, 1.0]
+                        },
+                        [grain.pos.0 - 3.0, grain.pos.1 - 3.0, 6.0, 6.0],
+                        c.transform,
+                        g,
+                    );
+                }
+            }
+            for (addr, &(ref p, _)) in players.iter() {
+                rectangle(
+                    if addr == &local_addr {
+                        [0.0, 0.0, 0.0, 1.0]
+                    } else {
+                        [0.7, 0.7, 0.7, 1.0]
+                    },
+                    [p.pos.0 - 10.0, p.pos.1 - 10.0, 20.0, 20.0],
+                    c.transform,
+                    g,
+                );
             }
         });
     }
