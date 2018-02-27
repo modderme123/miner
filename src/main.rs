@@ -287,6 +287,18 @@ fn main() {
                     g,
                 );
             }
+            for (x, a) in (0..).zip(terrain.iter()) {
+                for (y, val) in (0..).zip(a.iter()) {
+                    if *val {
+                        rectangle(
+                            [0.0, 0.0, 0.0, 1.0],
+                            [x as f64 * 10.0, y as f64 * 10.0, 20.0, 20.0],
+                            c.transform,
+                            g,
+                        );
+                    }
+                }
+            }
         });
     }
 }
