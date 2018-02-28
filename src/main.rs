@@ -82,6 +82,7 @@ struct Point {
 enum Message {
     Move(SocketAddr, Point),
     Add(SocketAddr, Point),
+    Terrain(Vec<Vec<bool>>),
     Remove(SocketAddr),
 }
 
@@ -219,6 +220,14 @@ fn main() {
                                     .ok();
                             }
                         }
+                        stream
+                            .write(&[
+                                serde_json::to_vec(&Message::Terrain(
+                                    terrain.iter().map(|x| x.to_vec()).collect(),
+                                )).unwrap(),
+                                vec![0xa],
+                            ].concat())
+                            .ok();
                         stream.flush().ok();
                         connections.add_connection(&addr, stream);
                     }
@@ -238,6 +247,11 @@ fn main() {
                 Ok(Message::Add(addr, ref g)) if addr != local_addr => {
                     grains.entry(addr).or_insert(vec![]).push(*g);
                 }
+                Ok(Message::Terrain(t)) => for (x, i) in (0..).zip(terrain.iter_mut()) {
+                    for (y, j) in (0..).zip(i.iter_mut()) {
+                        *j = t[x][y];
+                    }
+                },
                 _ => (),
             };
         }
