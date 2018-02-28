@@ -29,8 +29,8 @@ struct Server {
 }
 
 impl Server {
-    fn broadcast(&mut self, msg: &Vec<u8>) {
-        for (_, mut connection) in self.connections.iter_mut() {
+    fn broadcast(&mut self, msg: &[u8]) {
+        for connection in self.connections.values_mut() {
             connection.write(&[msg.to_vec(), vec![0xa]].concat()).ok();
             connection.flush().ok();
         }
@@ -58,7 +58,7 @@ impl Server {
     }
 }
 
-fn handle_client(stream: TcpStream, addr: SocketAddr, sender: Sender<Action>) {
+fn handle_client(stream: TcpStream, addr: SocketAddr, sender: &Sender<Action>) {
     let mut r = BufReader::new(stream);
     'read: loop {
         let mut buf = String::new();
@@ -119,7 +119,7 @@ fn main() {
                     }
                     let thread_tx = tx.clone();
                     thread::spawn(move || {
-                        handle_client(stream, addr, thread_tx);
+                        handle_client(stream, addr, &thread_tx);
                     });
                 }
             }
@@ -200,7 +200,7 @@ fn main() {
             if let Ok(message) = rx.try_recv() {
                 match message {
                     Action::Add(addr, mut stream) => {
-                        for (addr, &(ref p, ref s)) in players.iter() {
+                        for (addr, &(ref p, ref s)) in &players {
                             stream
                                 .write(&[
                                     serde_json::to_vec(&Message::Move(*addr, (*p, s.to_vec())))
@@ -230,7 +230,7 @@ fn main() {
         }
         if time % 10 == 0 {
             if let Some(&mut (ref mut you, ref mut spray)) = players.get_mut(&local_addr) {
-                let a = &Message::Move(local_addr, (you.clone(), spray.to_vec()));
+                let a = &Message::Move(local_addr, (*you, spray.to_vec()));
                 reader2
                     .write(&[serde_json::to_vec(a).unwrap(), vec![0xa]].concat())
                     .ok();
@@ -257,7 +257,7 @@ fn main() {
                 }
             }
 
-            for (addr, &mut (ref mut you, ref mut spray)) in players.iter_mut() {
+            for (addr, &mut (ref mut you, ref mut spray)) in &mut players {
                 for grain in spray.iter_mut() {
                     rectangle(
                         if addr == &local_addr {
@@ -318,7 +318,7 @@ fn main() {
                     }
                 }
             }
-            for (addr, &(_, ref spray)) in players.iter() {
+            for (addr, &(_, ref spray)) in &players {
                 for grain in spray.iter() {
                     rectangle(
                         if addr == &local_addr {
@@ -332,7 +332,7 @@ fn main() {
                     );
                 }
             }
-            for (addr, &(ref p, _)) in players.iter() {
+            for (addr, &(ref p, _)) in &players {
                 rectangle(
                     if addr == &local_addr {
                         [0.0, 0.0, 0.0, 1.0]
