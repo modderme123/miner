@@ -31,7 +31,7 @@ struct Server {
 impl Server {
     fn broadcast(&mut self, msg: &[u8]) {
         for connection in self.connections.values_mut() {
-            connection.write(&[msg.to_vec(), vec![0xa]].concat()).ok();
+            connection.write(&[msg, &[0xa]].concat()).ok();
             connection.flush().ok();
         }
     }
@@ -246,14 +246,15 @@ fn main() {
 
                     you.vel.0 += 0.5 * x.0 / l;
                     you.vel.1 += 0.5 * x.1 / l;
-
-                    spray.push(Point {
-                        pos: (you.pos.0 - x.0 / l, you.pos.1 - x.1 / l),
-                        vel: (
-                            -10.0 * x.0 / l + 3.0 * random::<f64>(),
-                            -10.0 * x.1 / l + 3.0 * random::<f64>(),
-                        ),
-                    });
+                    for _ in 1..5 {
+                        spray.push(Point {
+                            pos: (you.pos.0 - x.0 / l, you.pos.1 - x.1 / l),
+                            vel: (
+                                -10.0 * x.0 / l + 3.0 * random::<f64>(),
+                                -10.0 * x.1 / l + 3.0 * random::<f64>(),
+                            ),
+                        });
+                    }
                 }
             }
 
