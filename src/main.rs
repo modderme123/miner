@@ -80,7 +80,8 @@ struct Point {
 
 #[derive(Serialize, Deserialize, Debug)]
 enum Message {
-    Move(SocketAddr, (Point, Vec<Point>)),
+    Move(SocketAddr, Point),
+    Add(SocketAddr, Point),
     Remove(SocketAddr),
 }
 
@@ -150,14 +151,14 @@ fn main() {
     let mut players = HashMap::new();
     players.insert(
         local_addr,
-        (
-            Point {
-                pos: (50.0, 50.0),
-                vel: (0.0, 0.0),
-            },
-            vec![],
-        ),
+        Point {
+            pos: (50.0, 50.0),
+            vel: (0.0, 0.0),
+        },
     );
+
+    let mut grains = HashMap::new();
+    grains.insert(local_addr, vec![]);
 
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
@@ -200,14 +201,23 @@ fn main() {
             if let Ok(message) = rx.try_recv() {
                 match message {
                     Action::Add(addr, mut stream) => {
-                        for (addr, &(ref p, ref s)) in &players {
+                        for (addr, p) in &players {
                             stream
                                 .write(&[
-                                    serde_json::to_vec(&Message::Move(*addr, (*p, s.to_vec())))
-                                        .unwrap(),
+                                    serde_json::to_vec(&Message::Move(*addr, *p)).unwrap(),
                                     vec![0xa],
                                 ].concat())
                                 .ok();
+                        }
+                        for (addr, s) in &grains {
+                            for x in s {
+                                stream
+                                    .write(&[
+                                        serde_json::to_vec(&Message::Add(*addr, *x)).unwrap(),
+                                        vec![0xa],
+                                    ].concat())
+                                    .ok();
+                            }
                         }
                         stream.flush().ok();
                         connections.add_connection(&addr, stream);
@@ -222,17 +232,22 @@ fn main() {
                 Ok(Message::Remove(addr)) => {
                     players.remove(&addr);
                 }
-                Ok(Message::Move(addr, ref p)) if addr != local_addr => {
-                    players.insert(addr, p.clone());
+                Ok(Message::Move(addr, p)) if addr != local_addr => {
+                    players.insert(addr, p);
+                }
+                Ok(Message::Add(addr, ref g)) if addr != local_addr => {
+                    grains.entry(addr).or_insert(vec![]).push(*g);
                 }
                 _ => (),
             };
         }
         if time % 10 == 0 {
-            if let Some(&mut (ref mut you, ref mut spray)) = players.get_mut(&local_addr) {
-                let a = &Message::Move(local_addr, (*you, spray.to_vec()));
+            if let Some(you) = players.get(&local_addr) {
                 reader2
-                    .write(&[serde_json::to_vec(a).unwrap(), vec![0xa]].concat())
+                    .write(&[
+                        serde_json::to_vec(&Message::Move(local_addr, *you)).unwrap(),
+                        vec![0xa],
+                    ].concat())
                     .ok();
                 reader2.flush().ok();
             }
@@ -240,25 +255,35 @@ fn main() {
         time += 1;
         window.draw_2d(&e, |c, g| {
             if clicking {
-                if let Some(&mut (ref mut you, ref mut spray)) = players.get_mut(&local_addr) {
+                if let Some(you) = players.get_mut(&local_addr) {
                     let x = (you.pos.0 - cursor.0, you.pos.1 - cursor.1);
                     let l = (x.0 * x.0 + x.1 * x.1).sqrt();
 
                     you.vel.0 += 0.5 * x.0 / l;
                     you.vel.1 += 0.5 * x.1 / l;
-                    for _ in 1..5 {
-                        spray.push(Point {
-                            pos: (you.pos.0 - x.0 / l, you.pos.1 - x.1 / l),
-                            vel: (
-                                -10.0 * x.0 / l + 3.0 * random::<f64>(),
-                                -10.0 * x.1 / l + 3.0 * random::<f64>(),
-                            ),
-                        });
+                    if let Some(mut spray) = grains.get_mut(&local_addr) {
+                        for _ in 1..5 {
+                            let p = Point {
+                                pos: (you.pos.0 - x.0 / l, you.pos.1 - x.1 / l),
+                                vel: (
+                                    -10.0 * x.0 / l + 3.0 * random::<f64>(),
+                                    -10.0 * x.1 / l + 3.0 * random::<f64>(),
+                                ),
+                            };
+                            spray.push(p);
+                            reader2
+                                .write(&[
+                                    serde_json::to_vec(&Message::Add(local_addr, p)).unwrap(),
+                                    vec![0xa],
+                                ].concat())
+                                .ok();
+                            reader2.flush().ok();
+                        }
                     }
                 }
             }
 
-            for &mut (ref mut you, ref mut spray) in players.values_mut() {
+            for spray in grains.values_mut() {
                 for grain in spray.iter_mut() {
                     grain.pos.0 += grain.vel.0;
                     grain.pos.1 += grain.vel.1;
@@ -275,6 +300,8 @@ fn main() {
                     terrain[grain.pos.0 as usize / 6][grain.pos.1 as usize / 6] = false;
                     !x
                 });
+            }
+            for you in players.values_mut() {
                 you.vel.1 += 0.06;
                 you.vel.0 *= 0.95;
                 you.vel.1 *= 0.95;
@@ -309,7 +336,7 @@ fn main() {
                     }
                 }
             }
-            for (addr, &(_, ref spray)) in &players {
+            for (addr, spray) in &grains {
                 for grain in spray.iter() {
                     rectangle(
                         if addr == &local_addr {
@@ -323,7 +350,7 @@ fn main() {
                     );
                 }
             }
-            for (addr, &(ref p, _)) in &players {
+            for (addr, p) in &players {
                 rectangle(
                     if addr == &local_addr {
                         [0.0, 0.0, 0.0, 1.0]
