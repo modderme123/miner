@@ -127,14 +127,14 @@ fn main() {
     });
 
     let (reader_send, reader_read): (Sender<String>, Receiver<String>) = mpsc::channel();
-    let mut r = BufReader::new(reader);
-    thread::spawn(move || 'read: loop {
-        let mut buf = String::new();
-        if let Ok(n) = r.read_line(&mut buf) {
-            if n == 0 {
-                break 'read;
+    thread::spawn(move || {
+        for buf in BufReader::new(reader).lines() {
+            if let Ok(b) = buf {
+                if b == "" {
+                    continue;
+                }
+                reader_send.send(b).ok();
             }
-            reader_send.send(buf).ok();
         }
     });
 
