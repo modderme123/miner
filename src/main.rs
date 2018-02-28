@@ -258,18 +258,8 @@ fn main() {
                 }
             }
 
-            for (addr, &mut (ref mut you, ref mut spray)) in &mut players {
+            for &mut (ref mut you, ref mut spray) in players.values_mut() {
                 for grain in spray.iter_mut() {
-                    rectangle(
-                        if addr == &local_addr {
-                            [0.0, 0.0, 0.0, 1.0]
-                        } else {
-                            [0.7, 0.7, 0.7, 1.0]
-                        },
-                        [grain.pos.0 - 3.0, grain.pos.1 - 3.0, 6.0, 6.0],
-                        c.transform,
-                        g,
-                    );
                     grain.pos.0 += grain.vel.0;
                     grain.pos.1 += grain.vel.1;
                     grain.vel.0 *= 0.99;
