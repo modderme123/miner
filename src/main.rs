@@ -247,11 +247,11 @@ fn main() {
                 Ok(Message::Add(addr, ref g)) if addr != local_addr => {
                     grains.entry(addr).or_insert(vec![]).push(*g);
                 }
-                Ok(Message::Terrain(t)) => for (x, i) in (0..).zip(terrain.iter_mut()) {
-                    for (y, j) in (0..).zip(i.iter_mut()) {
-                        *j = t[x][y];
-                    }
-                },
+                Ok(Message::Terrain(t)) => terrain = t.iter().map(|x| {
+                    let mut y = [false; SCREEN.1 as usize / 6];
+                    y.clone_from_slice(x);
+                    y
+                }).collect(),
                 _ => (),
             };
         }
@@ -376,7 +376,7 @@ fn main() {
 
             clear([0.95, 0.95, 0.95, 1.0], g);
 
-            let yp = players.get(&local_addr).unwrap().pos.0 - SCREEN.0 as f64 / 2.0;
+            let yp = players[&local_addr].pos.0 - SCREEN.0 as f64 / 2.0;
 
             for (x, a) in (0..).zip(terrain.iter()) {
                 for (y, val) in (0..).zip(a.iter()) {
