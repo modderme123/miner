@@ -247,11 +247,15 @@ fn main() {
                 Ok(Message::Add(addr, ref g)) if addr != local_addr => {
                     grains.entry(addr).or_insert(vec![]).push(*g);
                 }
-                Ok(Message::Terrain(t)) => terrain = t.iter().map(|x| {
-                    let mut y = [false; SCREEN.1 as usize / 6];
-                    y.clone_from_slice(x);
-                    y
-                }).collect(),
+                Ok(Message::Terrain(t)) => {
+                    terrain = t.iter()
+                        .map(|x| {
+                            let mut y = [false; SCREEN.1 as usize / 6];
+                            y.clone_from_slice(x);
+                            y
+                        })
+                        .collect()
+                }
                 _ => (),
             };
         }
@@ -321,7 +325,7 @@ fn main() {
                 you.vel.1 *= 0.95;
 
                 if you.pos.0 >= SCREEN.0 as f64 && you.vel.0 >= 0.0
-                    && terrain.len() as f64 <= you.pos.0 / 6.0
+                    && terrain.len() as f64 <= you.pos.0 / 6.0 && l
                 {
                     let mut rects = vec![];
 
@@ -348,15 +352,12 @@ fn main() {
                             });
                         }
                     }
-                    reader2
-                        .write(&[
-                            serde_json::to_vec(&Message::Terrain(
-                                terrain.iter().map(|x| x.to_vec()).collect(),
-                            )).unwrap(),
-                            vec![0xa],
-                        ].concat())
-                        .ok();
-                    reader2.flush().ok();
+                    connections.broadcast(&[
+                        serde_json::to_vec(&Message::Terrain(
+                            terrain.iter().map(|x| x.to_vec()).collect(),
+                        )).unwrap(),
+                        vec![0xa],
+                    ].concat());
                 }
                 if you.pos.0 <= 0.0 && you.vel.0 <= 0.0 {
                     you.vel.0 = 0.0
