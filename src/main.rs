@@ -270,7 +270,7 @@ fn main() {
         window.draw_2d(&e, |c, g| {
             if clicking {
                 if let Some(you) = players.get_mut(&local_addr) {
-                    let x = (you.pos.0 - cursor.0, you.pos.1 - cursor.1);
+                    let x = (SCREEN.0 as f64 / 2.0 - cursor.0, you.pos.1 - cursor.1);
                     let l = (x.0 * x.0 + x.1 * x.1).sqrt();
 
                     you.vel.0 += 0.5 * x.0 / l;
@@ -338,12 +338,15 @@ fn main() {
             }
 
             clear([0.95, 0.95, 0.95, 1.0], g);
+
+            let yp = players.get(&local_addr).unwrap().pos.0 - SCREEN.0 as f64 / 2.0;
+
             for (x, a) in (0..).zip(terrain.iter()) {
                 for (y, val) in (0..).zip(a.iter()) {
                     if *val {
                         rectangle(
                             [0.0, 0.0, 0.0, 1.0],
-                            [x as f64 * 6.0, y as f64 * 6.0, 6.0, 6.0],
+                            [x as f64 * 6.0 - yp, y as f64 * 6.0, 6.0, 6.0],
                             c.transform,
                             g,
                         );
@@ -358,7 +361,7 @@ fn main() {
                         } else {
                             [0.7, 0.7, 0.7, 1.0]
                         },
-                        [grain.pos.0, grain.pos.1, 6.0, 6.0],
+                        [grain.pos.0 - yp, grain.pos.1, 6.0, 6.0],
                         c.transform,
                         g,
                     );
@@ -371,7 +374,7 @@ fn main() {
                     } else {
                         [0.7, 0.7, 0.7, 1.0]
                     },
-                    [p.pos.0 - 10.0, p.pos.1 - 10.0, 20.0, 20.0],
+                    [p.pos.0 - 10.0 - yp, p.pos.1 - 10.0, 20.0, 20.0],
                     c.transform,
                     g,
                 );
