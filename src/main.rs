@@ -163,7 +163,7 @@ fn main() {
 
     let mut clicking = false;
     let mut cursor = (0.0, 0.0);
-    let mut terrain = [[false; SCREEN.1 as usize / 6]; SCREEN.0 as usize / 6];
+    let mut terrain = vec![[false; SCREEN.1 as usize / 6]; SCREEN.0 as usize / 6];
     {
         let mut rects = vec![];
 
@@ -306,7 +306,7 @@ fn main() {
                     grain.vel.1 += 0.05;
                 }
                 spray.retain(|grain| {
-                    grain.pos.0 < SCREEN.0 as f64 && grain.pos.0 > 0.0
+                    grain.pos.0 < terrain.len() as f64 * 6.0 && grain.pos.0 > 0.0
                         && grain.pos.1 < SCREEN.1 as f64 && grain.pos.1 > 0.0
                 });
                 spray.retain(|grain| {
@@ -320,8 +320,45 @@ fn main() {
                 you.vel.0 *= 0.95;
                 you.vel.1 *= 0.95;
 
-                if you.pos.0 >= SCREEN.0 as f64 && you.vel.0 >= 0.0 {
-                    you.vel.0 = 0.0
+                if you.pos.0 >= SCREEN.0 as f64 && you.vel.0 >= 0.0
+                    && terrain.len() as f64 <= you.pos.0 / 6.0
+                {
+                    you.vel.0 = 0.0;
+
+                    let mut rects = vec![];
+
+                    for _ in 1..100 {
+                        let x = (
+                            random::<f64>() * SCREEN.0 as f64 / 6.0 + terrain.len() as f64,
+                            random::<f64>() * SCREEN.1 as f64 / 6.0,
+                        );
+                        rects.push((
+                            x.0,
+                            x.1,
+                            x.0 + random::<f64>() * 20.0,
+                            x.1 + random::<f64>() * 20.0,
+                        ))
+                    }
+                    for _ in 0..SCREEN.0 as usize / 6 {
+                        terrain.push([false; SCREEN.1 as usize / 6]);
+                    }
+                    for (x, a) in (0..).zip(terrain.iter_mut()) {
+                        for (y, val) in (0..).zip(a.iter_mut()) {
+                            *val |= rects.iter().any(|r| {
+                                (x as f64) > r.0 && (x as f64) < r.2 && (y as f64) > r.1
+                                    && (y as f64) < r.3
+                            });
+                        }
+                    }
+                    reader2
+                        .write(&[
+                            serde_json::to_vec(&Message::Terrain(
+                                terrain.iter().map(|x| x.to_vec()).collect(),
+                            )).unwrap(),
+                            vec![0xa],
+                        ].concat())
+                        .ok();
+                    reader2.flush().ok();
                 }
                 if you.pos.0 <= 0.0 && you.vel.0 <= 0.0 {
                     you.vel.0 = 0.0
@@ -333,7 +370,9 @@ fn main() {
                     you.vel.1 = 0.0
                 }
 
-                you.pos.0 = (you.pos.0 + you.vel.0).max(0.0).min(SCREEN.0 as f64);
+                you.pos.0 = (you.pos.0 + you.vel.0)
+                    .max(0.0)
+                    .min(terrain.len() as f64 * 6.0);
                 you.pos.1 = (you.pos.1 + you.vel.1).max(0.0).min(SCREEN.1 as f64);
             }
 
