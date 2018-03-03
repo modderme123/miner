@@ -323,8 +323,6 @@ fn main() {
                 if you.pos.0 >= SCREEN.0 as f64 && you.vel.0 >= 0.0
                     && terrain.len() as f64 <= you.pos.0 / 6.0
                 {
-                    you.vel.0 = 0.0;
-
                     let mut rects = vec![];
 
                     for _ in 1..100 {
@@ -382,7 +380,8 @@ fn main() {
 
             for (x, a) in (0..).zip(terrain.iter()) {
                 for (y, val) in (0..).zip(a.iter()) {
-                    if *val {
+                    let a = (x * 6) as f64 - yp;
+                    if a > 0.0 && a < SCREEN.0 as f64 && *val {
                         rectangle(
                             [0.0, 0.0, 0.0, 1.0],
                             [x as f64 * 6.0 - yp, y as f64 * 6.0, 6.0, 6.0],
