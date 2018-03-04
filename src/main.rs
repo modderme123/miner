@@ -30,7 +30,7 @@ fn main() {
     println!("Would you like to \n 1) Connect to an existing socket? \n 2) Create a new socket?");
     let mut input = String::new();
     stdin().read_line(&mut input).unwrap();
-    let (listener, reader) = match &*input {
+    let (mut connections, reader) = match &*input {
         "1\n" => {
             println!("What is the ip of the socket you would like to connect to?");
             input.clear();
@@ -40,7 +40,7 @@ fn main() {
             (None, TcpStream::connect(input + ":8080").unwrap())
         }
         "2\n" => (
-            Some(TcpListener::bind("0.0.0.0:8080").unwrap()),
+            Some(Server::new(TcpListener::bind("0.0.0.0:8080").unwrap())),
             TcpStream::connect("0.0.0.0:8080").unwrap(),
         ),
         _ => (None, TcpStream::connect("0.0.0.0:8080").unwrap()),
@@ -59,7 +59,6 @@ fn main() {
         }
     });
 
-    let mut connections = listener.map(|l| Server::new(l));
     let rx = connections.as_mut().map(|c| c.listen());
 
     let mut window: PistonWindow = WindowSettings::new("Miner!", SCREEN)
