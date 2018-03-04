@@ -7,84 +7,22 @@ extern crate serde_json;
 extern crate piston_window;
 extern crate rand;
 
+mod server;
+mod client;
+
+use server::{Action, Server};
+use client::*;
+
 use rand::random;
 use piston_window::*;
 
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream};
 use std::io::Write;
 use std::thread;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::mpsc;
-use std::io::{self, BufRead, BufReader};
-
-enum Action {
-    Add(SocketAddr, TcpStream),
-    Remove(SocketAddr),
-    Broadcast(Vec<u8>),
-}
-
-struct Server {
-    connections: HashMap<SocketAddr, TcpStream>,
-}
-
-impl Server {
-    fn broadcast(&mut self, msg: &[u8]) {
-        for connection in self.connections.values_mut() {
-            connection.write(&[msg, &[0xa]].concat()).ok();
-            connection.flush().ok();
-        }
-    }
-
-    fn add_connection(&mut self, addr: &SocketAddr, stream: TcpStream) {
-        self.connections.insert(*addr, stream);
-        let msg = format!(
-            "({} connections) ----- new connection from {} -----",
-            self.connections.len(),
-            addr
-        );
-        println!("{}", msg);
-    }
-
-    fn remove_connection(&mut self, addr: &SocketAddr) {
-        self.connections.remove(addr);
-        let msg = format!(
-            "({} connections) ----- {} is disconnected -----",
-            self.connections.len(),
-            addr
-        );
-        println!("{}", msg);
-        self.broadcast(&serde_json::to_vec(&Message::Remove(*addr)).unwrap())
-    }
-}
-
-fn handle_client(stream: TcpStream, addr: SocketAddr, sender: &Sender<Action>) {
-    let mut r = BufReader::new(stream);
-    'read: loop {
-        let mut buf = String::new();
-        if let Ok(n) = r.read_line(&mut buf) {
-            if n == 0 {
-                break 'read;
-            }
-            sender.send(Action::Broadcast(buf.into_bytes())).ok();
-        }
-    }
-    sender.send(Action::Remove(addr)).ok();
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy)]
-struct Point {
-    pos: (f64, f64),
-    vel: (f64, f64),
-}
-
-#[derive(Serialize, Deserialize)]
-enum Message {
-    Move(SocketAddr, Point),
-    Add(SocketAddr, Point),
-    Terrain(Vec<Vec<bool>>),
-    Remove(SocketAddr),
-}
+use std::io::{stdin, BufRead, BufReader};
 
 const SCREEN: (u32, u32) = (1080, 678);
 
@@ -92,12 +30,12 @@ fn main() {
     println!("try connecting via `telnet localhost 8080`");
     println!("Would you like to \n 1) Connect to an existing socket? \n 2) Create a new socket?");
     let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
+    stdin().read_line(&mut input).unwrap();
     let (listener, reader) = match &*input {
         "1\n" => {
             println!("What is the ip of the socket you would like to connect to?");
             input.clear();
-            if let Ok(n) = io::stdin().read_line(&mut input) {
+            if let Ok(n) = stdin().read_line(&mut input) {
                 input.remove(n - 1);
             }
             (None, TcpStream::connect(input + ":8080").unwrap())
@@ -111,22 +49,7 @@ fn main() {
     let l = listener.is_some();
     let mut reader2 = reader.try_clone().unwrap();
 
-    let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
-    thread::spawn(move || {
-        for l in listener.iter() {
-            loop {
-                if let Ok((stream, addr)) = l.accept() {
-                    {
-                        tx.send(Action::Add(addr, stream.try_clone().unwrap())).ok();
-                    }
-                    let thread_tx = tx.clone();
-                    thread::spawn(move || {
-                        handle_client(stream, addr, &thread_tx);
-                    });
-                }
-            }
-        }
-    });
+    let rx = server::listen(listener);
 
     let (reader_send, reader_read): (Sender<String>, Receiver<String>) = mpsc::channel();
     thread::spawn(move || {
@@ -140,9 +63,7 @@ fn main() {
         }
     });
 
-    let mut connections = Server {
-        connections: HashMap::new(),
-    };
+    let mut connections = Server::new();
     let mut window: PistonWindow = WindowSettings::new("Miner!", SCREEN)
         .exit_on_esc(true)
         .build()
