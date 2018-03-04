@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate serde_derive;
-
-extern crate serde;
 extern crate serde_json;
 
 extern crate piston_window;
@@ -114,7 +112,7 @@ fn main() {
             Some(Button::Mouse(_)) | Some(Button::Keyboard(Key::Space)) => clicking = false,
             _ => (),
         }
-        if let &mut Some(ref mut c) = &mut connections {
+        if let Some(ref mut c) = connections {
             c.handle(&players, &grains, &terrain);
         }
         if let Ok(message) = reader_read.try_recv() {
@@ -207,7 +205,7 @@ fn main() {
                 if you.pos.0 >= SCREEN.0 as f64 && you.vel.0 >= 0.0
                     && terrain.len() as f64 <= you.pos.0 / 6.0
                 {
-                    if let &mut Some(ref mut c) = &mut connections {
+                    if let Some(ref mut c) = connections {
                         let mut rects = vec![];
 
                         for _ in 1..100 {

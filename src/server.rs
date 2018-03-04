@@ -1,5 +1,4 @@
-extern crate serde_json;
-
+use serde_json;
 use client::{Message, Point};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::thread;
@@ -58,7 +57,7 @@ impl Server {
         &mut self,
         players: &HashMap<SocketAddr, Point>,
         grains: &HashMap<SocketAddr, Vec<Point>>,
-        terrain: &Vec<[bool; 113]>,
+        terrain: &[[bool; 113]],
     ) {
         if let Ok(mut message) = self.rx.try_recv() {
             match message {
@@ -118,9 +117,8 @@ fn handle_client(stream: TcpStream, addr: SocketAddr, sender: &Sender<Action>) {
 
 fn listen(listener: TcpListener) -> Receiver<Action> {
     let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
-    let l = listener.try_clone().unwrap();
     thread::spawn(move || loop {
-        if let Ok((stream, addr)) = l.accept() {
+        if let Ok((stream, addr)) = listener.accept() {
             let thread_tx = tx.clone();
             thread::spawn(move || {
                 handle_client(stream, addr, &thread_tx);
