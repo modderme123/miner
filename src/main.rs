@@ -66,19 +66,19 @@ fn handle_client(stream: TcpStream, addr: SocketAddr, sender: &Sender<Action>) {
             if n == 0 {
                 break 'read;
             }
-            sender.send(Action::Broadcast(buf.as_bytes().to_vec())).ok();
+            sender.send(Action::Broadcast(buf.into_bytes())).ok();
         }
     }
     sender.send(Action::Remove(addr)).ok();
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 struct Point {
     pos: (f64, f64),
     vel: (f64, f64),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 enum Message {
     Move(SocketAddr, Point),
     Add(SocketAddr, Point),
@@ -245,7 +245,7 @@ fn main() {
                     players.insert(addr, p);
                 }
                 Ok(Message::Add(addr, ref g)) if addr != local_addr => {
-                    grains.entry(addr).or_insert(vec![]).push(*g);
+                    grains.entry(addr).or_insert_with(Vec::new).push(*g);
                 }
                 Ok(Message::Terrain(t)) => {
                     terrain = t.iter()
