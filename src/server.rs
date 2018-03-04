@@ -1,6 +1,6 @@
 extern crate serde_json;
 
-use client::Message;
+use client::{Message, Point};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::thread;
 use std::collections::HashMap;
@@ -16,14 +16,14 @@ pub enum Action {
 
 pub struct Server {
     connections: HashMap<SocketAddr, TcpStream>,
-    listener: TcpListener,
+    rx: Receiver<Action>,
 }
 
 impl Server {
     pub fn new(listener: TcpListener) -> Server {
         Server {
             connections: HashMap::new(),
-            listener,
+            rx: listen(listener),
         }
     }
     pub fn broadcast(&mut self, msg: &[u8]) {
@@ -53,18 +53,49 @@ impl Server {
         println!("{}", msg);
         self.broadcast(&serde_json::to_vec(&Message::Remove(*addr)).unwrap())
     }
-    pub fn listen(&mut self) -> Receiver<Action> {
-        let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
-        let l = self.listener.try_clone().unwrap();
-        thread::spawn(move || loop {
-            if let Ok((stream, addr)) = l.accept() {
-                let thread_tx = tx.clone();
-                thread::spawn(move || {
-                    handle_client(stream, addr, &thread_tx);
-                });
+
+    pub fn handle(
+        &mut self,
+        players: &HashMap<SocketAddr, Point>,
+        grains: &HashMap<SocketAddr, Vec<Point>>,
+        terrain: &Vec<[bool; 113]>,
+    ) {
+        if let Ok(mut message) = self.rx.try_recv() {
+            match message {
+                Action::Add(addr, ref mut stream) => {
+                    for (addr, p) in players {
+                        stream
+                            .write(&[
+                                serde_json::to_vec(&Message::Move(*addr, *p)).unwrap(),
+                                vec![0xa],
+                            ].concat())
+                            .ok();
+                    }
+                    for (addr, s) in grains {
+                        for x in s {
+                            stream
+                                .write(&[
+                                    serde_json::to_vec(&Message::Add(*addr, *x)).unwrap(),
+                                    vec![0xa],
+                                ].concat())
+                                .ok();
+                        }
+                    }
+                    stream
+                        .write(&[
+                            serde_json::to_vec(&Message::Terrain(
+                                terrain.iter().map(|x| x.to_vec()).collect(),
+                            )).unwrap(),
+                            vec![0xa],
+                        ].concat())
+                        .ok();
+                    stream.flush().ok();
+                    self.add_connection(&addr, stream.try_clone().unwrap());
+                }
+                Action::Remove(addr) => self.remove_connection(&addr),
+                Action::Broadcast(msg) => self.broadcast(&msg),
             }
-        });
-        rx
+        }
     }
 }
 
@@ -83,4 +114,18 @@ fn handle_client(stream: TcpStream, addr: SocketAddr, sender: &Sender<Action>) {
         }
     }
     sender.send(Action::Remove(addr)).ok();
+}
+
+fn listen(listener: TcpListener) -> Receiver<Action> {
+    let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
+    let l = listener.try_clone().unwrap();
+    thread::spawn(move || loop {
+        if let Ok((stream, addr)) = l.accept() {
+            let thread_tx = tx.clone();
+            thread::spawn(move || {
+                handle_client(stream, addr, &thread_tx);
+            });
+        }
+    });
+    rx
 }

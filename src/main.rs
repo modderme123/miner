@@ -10,7 +10,7 @@ extern crate rand;
 mod server;
 mod client;
 
-use server::{Action, Server};
+use server::Server;
 use client::*;
 
 use rand::random;
@@ -58,8 +58,6 @@ fn main() {
             }
         }
     });
-
-    let rx = connections.as_mut().map(|c| c.listen());
 
     let mut window: PistonWindow = WindowSettings::new("Miner!", SCREEN)
         .exit_on_esc(true)
@@ -116,43 +114,8 @@ fn main() {
             Some(Button::Mouse(_)) | Some(Button::Keyboard(Key::Space)) => clicking = false,
             _ => (),
         }
-        if let Some(Ok(mut message)) = rx.as_ref().map(|r| r.try_recv()) {
-            if let &mut Some(ref mut c) = &mut connections {
-                match message {
-                    Action::Add(addr, ref mut stream) => {
-                        for (addr, p) in &players {
-                            stream
-                                .write(&[
-                                    serde_json::to_vec(&Message::Move(*addr, *p)).unwrap(),
-                                    vec![0xa],
-                                ].concat())
-                                .ok();
-                        }
-                        for (addr, s) in &grains {
-                            for x in s {
-                                stream
-                                    .write(&[
-                                        serde_json::to_vec(&Message::Add(*addr, *x)).unwrap(),
-                                        vec![0xa],
-                                    ].concat())
-                                    .ok();
-                            }
-                        }
-                        stream
-                            .write(&[
-                                serde_json::to_vec(&Message::Terrain(
-                                    terrain.iter().map(|x| x.to_vec()).collect(),
-                                )).unwrap(),
-                                vec![0xa],
-                            ].concat())
-                            .ok();
-                        stream.flush().ok();
-                        c.add_connection(&addr, stream.try_clone().unwrap());
-                    }
-                    Action::Remove(addr) => c.remove_connection(&addr),
-                    Action::Broadcast(msg) => c.broadcast(&msg),
-                }
-            }
+        if let &mut Some(ref mut c) = &mut connections {
+            c.handle(&players, &grains, &terrain);
         }
         if let Ok(message) = reader_read.try_recv() {
             match serde_json::from_str(&message) {
