@@ -15,13 +15,15 @@ pub enum Action {
 }
 
 pub struct Server {
-     connections: HashMap<SocketAddr, TcpStream>,
+    connections: HashMap<SocketAddr, TcpStream>,
+    listener: TcpListener,
 }
 
 impl Server {
-    pub fn new() -> Server {
+    pub fn new(listener: TcpListener) -> Server {
         Server {
-            connections: HashMap::new()
+            connections: HashMap::new(),
+            listener,
         }
     }
     pub fn broadcast(&mut self, msg: &[u8]) {
@@ -51,9 +53,25 @@ impl Server {
         println!("{}", msg);
         self.broadcast(&serde_json::to_vec(&Message::Remove(*addr)).unwrap())
     }
+    pub fn listen(&mut self) -> Receiver<Action> {
+        let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
+        let l = self.listener.try_clone().unwrap();
+        thread::spawn(move || loop {
+            if let Ok((stream, addr)) = l.accept() {
+                let thread_tx = tx.clone();
+                thread::spawn(move || {
+                    handle_client(stream, addr, &thread_tx);
+                });
+            }
+        });
+        rx
+    }
 }
 
 fn handle_client(stream: TcpStream, addr: SocketAddr, sender: &Sender<Action>) {
+    sender
+        .send(Action::Add(addr, stream.try_clone().unwrap()))
+        .ok();
     let mut r = BufReader::new(stream);
     'read: loop {
         let mut buf = String::new();
@@ -65,24 +83,4 @@ fn handle_client(stream: TcpStream, addr: SocketAddr, sender: &Sender<Action>) {
         }
     }
     sender.send(Action::Remove(addr)).ok();
-}
-
-pub fn listen(listener: Option<TcpListener>) -> Receiver<Action> {
-    let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
-    thread::spawn(move || {
-        for l in listener.iter() {
-            loop {
-                if let Ok((stream, addr)) = l.accept() {
-                    {
-                        tx.send(Action::Add(addr, stream.try_clone().unwrap())).ok();
-                    }
-                    let thread_tx = tx.clone();
-                    thread::spawn(move || {
-                        handle_client(stream, addr, &thread_tx);
-                    });
-                }
-            }
-        }
-    });
-    rx
 }

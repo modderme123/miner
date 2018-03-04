@@ -27,7 +27,6 @@ use std::io::{stdin, BufRead, BufReader};
 const SCREEN: (u32, u32) = (1080, 678);
 
 fn main() {
-    println!("try connecting via `telnet localhost 8080`");
     println!("Would you like to \n 1) Connect to an existing socket? \n 2) Create a new socket?");
     let mut input = String::new();
     stdin().read_line(&mut input).unwrap();
@@ -46,10 +45,7 @@ fn main() {
         ),
         _ => (None, TcpStream::connect("0.0.0.0:8080").unwrap()),
     };
-    let l = listener.is_some();
     let mut reader2 = reader.try_clone().unwrap();
-
-    let rx = server::listen(listener);
 
     let (reader_send, reader_read): (Sender<String>, Receiver<String>) = mpsc::channel();
     thread::spawn(move || {
@@ -63,7 +59,9 @@ fn main() {
         }
     });
 
-    let mut connections = Server::new();
+    let mut connections = listener.map(|l| Server::new(l));
+    let rx = connections.as_mut().map(|c| c.listen());
+
     let mut window: PistonWindow = WindowSettings::new("Miner!", SCREEN)
         .exit_on_esc(true)
         .build()
@@ -119,10 +117,10 @@ fn main() {
             Some(Button::Mouse(_)) | Some(Button::Keyboard(Key::Space)) => clicking = false,
             _ => (),
         }
-        if l {
-            if let Ok(message) = rx.try_recv() {
+        if let Some(Ok(mut message)) = rx.as_ref().map(|r| r.try_recv()) {
+            if let &mut Some(ref mut c) = &mut connections {
                 match message {
-                    Action::Add(addr, mut stream) => {
+                    Action::Add(addr, ref mut stream) => {
                         for (addr, p) in &players {
                             stream
                                 .write(&[
@@ -150,10 +148,10 @@ fn main() {
                             ].concat())
                             .ok();
                         stream.flush().ok();
-                        connections.add_connection(&addr, stream);
+                        c.add_connection(&addr, stream.try_clone().unwrap());
                     }
-                    Action::Remove(addr) => connections.remove_connection(&addr),
-                    Action::Broadcast(msg) => connections.broadcast(&msg),
+                    Action::Remove(addr) => c.remove_connection(&addr),
+                    Action::Broadcast(msg) => c.broadcast(&msg),
                 }
             }
         }
@@ -244,41 +242,42 @@ fn main() {
                 you.vel.1 += 0.06;
                 you.vel.0 *= 0.95;
                 you.vel.1 *= 0.95;
-
                 if you.pos.0 >= SCREEN.0 as f64 && you.vel.0 >= 0.0
-                    && terrain.len() as f64 <= you.pos.0 / 6.0 && l
+                    && terrain.len() as f64 <= you.pos.0 / 6.0
                 {
-                    let mut rects = vec![];
+                    if let &mut Some(ref mut c) = &mut connections {
+                        let mut rects = vec![];
 
-                    for _ in 1..100 {
-                        let x = (
-                            random::<f64>() * SCREEN.0 as f64 / 6.0 + terrain.len() as f64,
-                            random::<f64>() * SCREEN.1 as f64 / 6.0,
-                        );
-                        rects.push((
-                            x.0,
-                            x.1,
-                            x.0 + random::<f64>() * 20.0,
-                            x.1 + random::<f64>() * 20.0,
-                        ))
-                    }
-                    for _ in 0..SCREEN.0 as usize / 6 {
-                        terrain.push([false; SCREEN.1 as usize / 6]);
-                    }
-                    for (x, a) in (0..).zip(terrain.iter_mut()) {
-                        for (y, val) in (0..).zip(a.iter_mut()) {
-                            *val |= rects.iter().any(|r| {
-                                (x as f64) > r.0 && (x as f64) < r.2 && (y as f64) > r.1
-                                    && (y as f64) < r.3
-                            });
+                        for _ in 1..100 {
+                            let x = (
+                                random::<f64>() * SCREEN.0 as f64 / 6.0 + terrain.len() as f64,
+                                random::<f64>() * SCREEN.1 as f64 / 6.0,
+                            );
+                            rects.push((
+                                x.0,
+                                x.1,
+                                x.0 + random::<f64>() * 20.0,
+                                x.1 + random::<f64>() * 20.0,
+                            ))
                         }
+                        for _ in 0..SCREEN.0 as usize / 6 {
+                            terrain.push([false; SCREEN.1 as usize / 6]);
+                        }
+                        for (x, a) in (0..).zip(terrain.iter_mut()) {
+                            for (y, val) in (0..).zip(a.iter_mut()) {
+                                *val |= rects.iter().any(|r| {
+                                    (x as f64) > r.0 && (x as f64) < r.2 && (y as f64) > r.1
+                                        && (y as f64) < r.3
+                                });
+                            }
+                        }
+                        c.broadcast(&[
+                            serde_json::to_vec(&Message::Terrain(
+                                terrain.iter().map(|x| x.to_vec()).collect(),
+                            )).unwrap(),
+                            vec![0xa],
+                        ].concat());
                     }
-                    connections.broadcast(&[
-                        serde_json::to_vec(&Message::Terrain(
-                            terrain.iter().map(|x| x.to_vec()).collect(),
-                        )).unwrap(),
-                        vec![0xa],
-                    ].concat());
                 }
                 if you.pos.0 <= 0.0 && you.vel.0 <= 0.0 {
                     you.vel.0 = 0.0
